@@ -13,7 +13,7 @@ const verifyToken = async (req, res, next) => {
             return res.status(401).json({ success: false, msg: 'Invalid Token' })
         }
 
-        const user = await User.findById(decoded.id).select('-password')
+        const user = await User.findById(decoded.id).select('-password').populate('roles')
         if (!user) {
             return res.status(401).json({ success: false, msg: 'User Not Found' })
         }

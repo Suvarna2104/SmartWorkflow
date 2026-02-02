@@ -1,11 +1,20 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import UserManagement from './admin/UserManagement'
+import WorkflowBuilder from './admin/WorkflowBuilder'
+import RequestForm from './request/RequestForm'
+import RequestList from './request/RequestList'
+import PendingApprovals from './request/PendingApprovals'
+import api from '../api'
 
 const Admin = () => {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [activeTab, setActiveTab] = useState('Dashboard')
+  const [showRequestForm, setShowRequestForm] = useState(false)
+  
+  const userManagementRef = useRef()
+  const workflowBuilderRef = useRef()
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user')
@@ -27,11 +36,12 @@ const Admin = () => {
   // Common Menu Items for ALL users
   const menuItems = [
     { label: 'Dashboard', icon: 'M4 6h16M4 12h16M4 18h16' },
+    { label: 'Pending Approvals', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' }, // Added Pending Tab
     { label: 'Kanban Board', icon: 'M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2' },
     { label: 'My Requests', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
   ]
 
-  // Common Stats for ALL users
+  // Common Stats for ALL users (can make dynamic later)
   const statsItems = [
     { label: 'Active Requests', value: '12', color: 'border-blue-500' },
     { label: 'Pending Actions', value: '04', color: 'border-yellow-500' },
@@ -63,7 +73,7 @@ const Admin = () => {
           ))}
 
           {/* Admin Only Items */}
-          {user.role === 'admin' && (
+          {(user.role === 'admin' || (user.roles && user.roles.some(r => r.name === 'Admin'))) && (
             <>
               <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">
                 ADMIN TOOLS
@@ -102,13 +112,38 @@ const Admin = () => {
             <h1 className="text-2xl font-bold text-gray-800">
               {activeTab === 'Dashboard' ? 'System Overview' : activeTab}
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Welcome back, {user.email}</p>
+            <p className="text-sm text-gray-500 mt-1">Welcome back, {user.name}</p>
           </div>
-          {activeTab === 'Dashboard' && (
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-colors flex items-center">
+          
+          {/* Action Buttons based on Active Tab */}
+          {(activeTab === 'Dashboard' || activeTab === 'My Requests') && (
+            <button 
+              onClick={() => setShowRequestForm(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-colors flex items-center"
+            >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
               Create Request
             </button>
+          )}
+
+          {activeTab === 'User Management' && (
+             <button 
+             onClick={() => userManagementRef.current.openAddModal()}
+             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-colors flex items-center"
+           >
+             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+             Add User
+           </button>
+          )}
+
+          {activeTab === 'Workflow Builder' && (
+             <button 
+             onClick={() => workflowBuilderRef.current.openCreateModal()}
+             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-colors flex items-center"
+           >
+             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+             Create Workflow
+           </button>
           )}
         </header>
 
@@ -127,54 +162,25 @@ const Admin = () => {
               ))}
             </div>
 
-            {/* Recent Activity Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-6 border-b border-gray-100">
-                <h2 className="text-lg font-bold text-gray-800">Recent Activity</h2>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-                      <th className="px-6 py-4 font-semibold">ID</th>
-                      <th className="px-6 py-4 font-semibold">Title</th>
-                      <th className="px-6 py-4 font-semibold">Status</th>
-                      <th className="px-6 py-4 font-semibold text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    <tr className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">#REQ-101</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">Laptop Upgrade</td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          IN REVIEW
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline">View</button>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">#REQ-102</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">Software License</td>
-                      <td className="px-6 py-4">
-                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          PENDING
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline">View</button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            {/* Quick Pending Approvals (Mini View) for Dashboard */}
+             <PendingApprovals />
           </>
         )}
 
-        {activeTab === 'User Management' && <UserManagement />}
+        {/* Tab Components */}
+        {activeTab === 'My Requests' && <RequestList />}
+        {activeTab === 'Pending Approvals' && <PendingApprovals />}
+        {activeTab === 'User Management' && <UserManagement ref={userManagementRef} />}
+        {activeTab === 'Workflow Builder' && <WorkflowBuilder ref={workflowBuilderRef} />}
+        
+        {/* Modals */}
+        {showRequestForm && (
+            <RequestForm 
+                onClose={() => setShowRequestForm(false)} 
+                onSuccess={() => setActiveTab('My Requests')} // Switch to list on success
+            />
+        )}
+
       </main>
     </div>
   )

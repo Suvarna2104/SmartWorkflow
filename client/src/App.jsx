@@ -15,6 +15,10 @@ function App() {
   },
   {
     path:'/admin',
+    element:<Admin/> 
+  },
+  {
+    path:'/dashboard',
     element:<Admin/>
   }])
   

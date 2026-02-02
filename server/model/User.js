@@ -22,7 +22,11 @@ const userSchema = new mongoose.Schema({
     team: {
         type: String,
         default: 'General'
-    }
+    },
+    roles: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Role'
+    }]
 })
 
 export default mongoose.model('User', userSchema)
