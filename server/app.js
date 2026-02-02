@@ -7,6 +7,7 @@ import verifyToken from './middleware/authMiddleware.js'
 import userRoutes from './routes/userRoutes.js'
 import workflowRoutes from './routes/workflowRoutes.js'
 import requestRoutes from './routes/requestRoutes.js'
+import roleRoutes from './routes/roleRoutes.js'
 import loggerMiddleware from './middleware/loggerMiddleware.js'
 
 const app = express()
@@ -19,8 +20,25 @@ app.use('/auth/login', loginRoute)
 app.use('/api/users', userRoutes)
 app.use('/api/workflows', workflowRoutes)
 app.use('/api/requests', requestRoutes)
+app.use('/api/roles', roleRoutes)
 
-mongoose.connect(process.env.MONGO_URI).then(() => console.info(`MongoDB Connected with : ${process.env.MONGO_URI}`)).catch(err => console.error("Error Connecting MongoDB : ", err))
+import Role from './model/Role.js'
+
+mongoose.connect(process.env.MONGO_URI)
+    .then(async () => {
+        console.info(`MongoDB Connected`)
+
+        // Auto-seed Roles
+        const predefinedRoles = ['Admin', 'Manager', 'Employee', 'HR']
+        for (const roleName of predefinedRoles) {
+            const exists = await Role.findOne({ name: roleName })
+            if (!exists) {
+                await Role.create({ name: roleName })
+                console.log(`Seeded Role: ${roleName}`)
+            }
+        }
+    })
+    .catch(err => console.error("Error Connecting MongoDB : ", err))
 
 app.get('/ok', verifyToken, (req, res) => {
     try {
@@ -34,6 +52,7 @@ app.get('/ok', verifyToken, (req, res) => {
     }
 })
 
-app.listen(process.env.PORT, () => {
-    console.log(`Server is listening on port ${process.env.PORT}`)
+const PORT = process.env.PORT || 5000
+app.listen(PORT, () => {
+    console.log(`Server is listening on port ${PORT}`)
 })
