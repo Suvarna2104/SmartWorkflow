@@ -37,7 +37,7 @@ const loggerMiddleware = (req, res, next) => {
         if (status >= 400) {
             console.error(`Error Request: ${method} ${url} - Status: ${status}`)
             // Optionally log body if safe (avoid passwords)
-            if (Object.keys(body).length > 0) {
+            if (body && Object.keys(body).length > 0) {
                 const safeBody = { ...body }
                 if (safeBody.password) safeBody.password = '*****'
                 console.error('Request Body:', JSON.stringify(safeBody))

@@ -18,6 +18,12 @@ const verifyToken = async (req, res, next) => {
             return res.status(401).json({ success: false, msg: 'User Not Found' })
         }
 
+        // Compatibility: If roles array is empty but legacy role exists, treat it as a role object
+        if (user.roles.length === 0 && user.role) {
+            // Mock a role object for the middleware check
+            user.roles.push({ name: user.role })
+        }
+
         req.user = user
         next()
 

@@ -14,9 +14,9 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    role: {
+    role: { // Legacy field, kept for backward compatibility if needed, else prefer 'roles'
         type: String,
-        required: true,
+        required: false,  // loosened from true if we rely on roles[]
         default: 'employee'
     },
     team: {
@@ -26,7 +26,19 @@ const userSchema = new mongoose.Schema({
     roles: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Role'
-    }]
+    }],
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    reportingManagerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    createdByAdminId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }
 })
 
 export default mongoose.model('User', userSchema)

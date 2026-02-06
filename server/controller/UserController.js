@@ -1,4 +1,5 @@
 import User from '../model/User.js'
+import Role from '../model/Role.js'
 import bcrypt from 'bcryptjs'
 
 // Get all users
@@ -14,7 +15,7 @@ export const getUsers = async (req, res) => {
 // Create new user
 export const createUser = async (req, res) => {
     try {
-        const { name, email, password, role, team } = req.body
+        const { name, email, password, role, roleIds, team } = req.body
 
         // Check if user exists
         const existingUser = await User.findOne({ email })
@@ -26,11 +27,27 @@ export const createUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10)
         const hashedPassword = await bcrypt.hash(password, salt)
 
+        // If roleIds provided, use them. If only 'role' string provided, try to find/create role?
+        // Let's assume frontend sends roleIds correctly now.
+        // We also want to keep 'role' string synced for legacy (e.g. primary role name)
+
+        let finalRoleIds = roleIds || []
+        let legacyRole = role
+
+        // If no roleIds but role string exists, try to find role by name
+        if (finalRoleIds.length === 0 && role) {
+            const foundRole = await Role.findOne({ name: role })
+            if (foundRole) {
+                finalRoleIds = [foundRole._id]
+            }
+        }
+
         const newUser = new User({
             name,
             email,
             password: hashedPassword,
-            role,
+            role: legacyRole,
+            roles: finalRoleIds,
             team
         })
 
@@ -54,7 +71,7 @@ export const createUser = async (req, res) => {
 // Update user
 export const updateUser = async (req, res) => {
     try {
-        const { name, role, team } = req.body
+        const { name, role, roleIds, team } = req.body
         const userId = req.params.id
 
         const user = await User.findById(userId)
@@ -64,6 +81,7 @@ export const updateUser = async (req, res) => {
 
         user.name = name || user.name
         user.role = role || user.role
+        if (roleIds) user.roles = roleIds
         user.team = team || user.team
 
         await user.save()

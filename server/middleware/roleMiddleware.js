@@ -1,29 +1,21 @@
-const requireRole = (requiredRoles) => {
+export const requireRole = (roleName) => {
     return (req, res, next) => {
-        if (!req.user) {
-            return res.status(401).json({ success: false, msg: 'Not Authorized' })
+        if (!req.user || !req.user.roles) {
+            return res.status(403).json({ success: false, msg: 'Access Denied: No roles assigned' })
         }
 
-        const user = req.user
+        // DEBUG LOGGING
+        console.log('--- Role Middleware Check ---')
+        console.log('User:', req.user ? req.user.name : 'No User')
+        console.log('User Roles:', req.user && req.user.roles ? JSON.stringify(req.user.roles) : 'No Roles')
+        console.log('Required Role:', roleName)
 
-        // Normalize requiredRoles to array
-        const rolesToCheck = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles]
+        const hasRole = req.user.roles.some(r => r.name === roleName)
+        console.log('Has Role?', hasRole)
 
-        // Check legacy single role
-        if (rolesToCheck.includes(user.role)) {
-            return next()
+        if (!hasRole) {
+            return res.status(403).json({ success: false, msg: `Access Denied: Requires ${roleName} role` })
         }
-
-        // Check new roles array
-        if (user.roles && user.roles.length > 0) {
-            const hasRole = user.roles.some(r => rolesToCheck.includes(r.name))
-            if (hasRole) {
-                return next()
-            }
-        }
-
-        return res.status(403).json({ success: false, msg: 'Access Denied: Insufficient Role' })
+        next()
     }
 }
-
-export default requireRole

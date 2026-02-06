@@ -5,22 +5,25 @@ import mongoose from 'mongoose'
 import loginRoute from './routes/login.js'
 import verifyToken from './middleware/authMiddleware.js'
 import userRoutes from './routes/userRoutes.js'
-import workflowRoutes from './routes/workflowRoutes.js'
-import requestRoutes from './routes/requestRoutes.js'
-import roleRoutes from './routes/roleRoutes.js'
+// import workflowRoutes from './routes/workflowRoutes.js'
+// import requestRoutes from './routes/requestRoutes.js'
+// import roleRoutes from './routes/roleRoutes.js'
 import loggerMiddleware from './middleware/loggerMiddleware.js'
+import workflowMainRouter from './routes/workflow/index.js'
 
 const app = express()
 dotenv.config()
 app.use(cors())
-app.use(express.json())
+app.use(express.json()) 
 app.use(loggerMiddleware)
 
 app.use('/auth/login', loginRoute)
 app.use('/api/users', userRoutes)
-app.use('/api/workflows', workflowRoutes)
-app.use('/api/requests', requestRoutes)
-app.use('/api/roles', roleRoutes)
+// app.use('/api/workflows', workflowRoutes) // Legacy
+// app.use('/api/requests', requestRoutes) // Legacy
+// app.use('/api/roles', roleRoutes) // Legacy
+
+app.use('/api/workflow', workflowMainRouter)
 
 import Role from './model/Role.js'
 
