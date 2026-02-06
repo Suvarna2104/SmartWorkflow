@@ -10,8 +10,8 @@ const PendingApprovals = () => {
 
     const fetchTasks = async () => {
         try {
-            const res = await api.get('/api/requests/pending')
-            setTasks(res.data)
+            const res = await api.get('/api/workflow/tasks/my')
+            setTasks(res.data.data || []) // Handle nested data if consistent with other responses
         } catch (error) {
             console.error("Error fetching tasks", error)
         }
@@ -22,7 +22,7 @@ const PendingApprovals = () => {
         if (comment === null) return
 
         try {
-            await api.post(`/api/requests/${requestId}/action`, { action, comment })
+            await api.post(`/api/workflow/requests/${requestId}/action`, { action, comment })
             alert('Action processed successfully')
             fetchTasks()
         } catch (error) {

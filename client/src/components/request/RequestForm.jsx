@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import api from '../../api'
 
-const RequestForm = ({ onClose, onSuccess }) => {
+const RequestForm = ({ onClose, onSuccess, initialWorkflowId }) => {
   const [workflows, setWorkflows] = useState([])
   const [selectedWorkflow, setSelectedWorkflow] = useState(null)
   const [formData, setFormData] = useState({})
@@ -10,11 +10,19 @@ const RequestForm = ({ onClose, onSuccess }) => {
     fetchWorkflows()
   }, [])
 
+  useEffect(() => {
+    if (initialWorkflowId && workflows.length > 0) {
+        const preSelected = workflows.find(w => w._id === initialWorkflowId)
+        if (preSelected) {
+            setSelectedWorkflow(preSelected)
+        }
+    }
+  }, [initialWorkflowId, workflows])
+
   const fetchWorkflows = async () => {
     try {
-        const res = await api.get('/api/workflows')
-        // Filter active workflows
-        setWorkflows(res.data.filter(w => w.isActive))
+        const res = await api.get('/api/workflow/workflows/active')
+        setWorkflows(res.data.data || [])
     } catch (error) {
         console.error("Error fetching workflows", error)
     }
@@ -35,7 +43,7 @@ const RequestForm = ({ onClose, onSuccess }) => {
       if (!selectedWorkflow) return
 
       try {
-          await api.post('/api/requests', {
+          await api.post('/api/workflow/requests', {
               workflowId: selectedWorkflow._id,
               formData: formData
           })

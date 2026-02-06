@@ -12,6 +12,8 @@ const Admin = () => {
   const [user, setUser] = useState(null)
   const [activeTab, setActiveTab] = useState('Dashboard')
   const [showRequestForm, setShowRequestForm] = useState(false)
+  const [dashboardWorkflows, setDashboardWorkflows] = useState([])
+  const [initialWorkflowId, setInitialWorkflowId] = useState(null)
   
   const userManagementRef = useRef()
   const workflowBuilderRef = useRef()
@@ -21,9 +23,28 @@ const Admin = () => {
     if (storedUser) {
       setUser(JSON.parse(storedUser))
     } else {
-      navigate('/') // Redirect to login if not authenticated
+      navigate('/')
     }
   }, [navigate])
+
+  useEffect(() => {
+    if (activeTab === 'Dashboard') {
+        const fetchActiveWorkflows = async () => {
+            try {
+                const res = await api.get('/api/workflow/workflows/active')
+                setDashboardWorkflows(res.data.data || [])
+            } catch (error) {
+                console.error("Error fetching dashboard workflows", error)
+            }
+        }
+        fetchActiveWorkflows()
+    }
+  }, [activeTab])
+
+  const handleStartRequest = (workflowId = null) => {
+      setInitialWorkflowId(workflowId)
+      setShowRequestForm(true)
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -118,7 +139,7 @@ const Admin = () => {
           {/* Action Buttons based on Active Tab */}
           {(activeTab === 'Dashboard' || activeTab === 'My Requests') && (
             <button 
-              onClick={() => setShowRequestForm(true)}
+              onClick={() => handleStartRequest(null)}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-colors flex items-center"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
@@ -164,6 +185,35 @@ const Admin = () => {
 
             {/* Quick Pending Approvals (Mini View) for Dashboard */}
              <PendingApprovals />
+
+             {/* Workflow Definitions Cards for Easy Access */}
+             <div className="mt-8">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Available Workflows</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {dashboardWorkflows.length > 0 ? (
+                        dashboardWorkflows.map(wf => (
+                            <div 
+                                key={wf._id} 
+                                onClick={() => handleStartRequest(wf._id)}
+                                className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+                            >
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="p-3 bg-blue-50 rounded-lg text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                                    </div>
+                                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Active</span>
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">{wf.name}</h3>
+                                <p className="text-sm text-gray-500 line-clamp-2">{wf.description || 'No description provided.'}</p>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-full text-center py-8 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">
+                            No active workflows available.
+                        </div>
+                    )}
+                </div>
+             </div>
           </>
         )}
 
@@ -177,6 +227,7 @@ const Admin = () => {
         {showRequestForm && (
             <RequestForm 
                 onClose={() => setShowRequestForm(false)} 
+                initialWorkflowId={initialWorkflowId}
                 onSuccess={() => setActiveTab('My Requests')} // Switch to list on success
             />
         )}

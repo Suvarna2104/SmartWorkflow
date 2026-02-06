@@ -10,8 +10,8 @@ const RequestDetails = ({ requestId, onClose }) => {
 
     const fetchRequest = async () => {
         try {
-            const res = await api.get(`/api/requests/${requestId}`)
-            setRequest(res.data)
+            const res = await api.get(`/api/workflow/requests/${requestId}`)
+            setRequest(res.data.data)
         } catch (error) {
             console.error("Error fetching request details", error)
         }

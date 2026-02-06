@@ -26,24 +26,33 @@ const StepsBuilder = ({ steps, setSteps }) => {
   }, [])
 
   const fetchRoles = async () => {
-       // Since I haven't made a dedicated roles endpoint, I might need to make one or just use strings
-       // If I implemented Role model, I should have an endpoint.
-       // I'll assume I can add it or just hardcode some defaults + dynamic
-       setRoles([
-           { _id: 'admin_role_id', name: 'Admin' },
-           { _id: 'manager_role_id', name: 'Manager' },
-           { _id: 'hr_role_id', name: 'HR' }
-       ])
-       // TODO: Implement GET /api/roles and call it here
+    try {
+        const res = await api.get('/api/workflow/admin/roles')
+        console.log("Fetched Roles:", res.data)
+        if (Array.isArray(res.data)) {
+            setRoles(res.data)
+        }
+    } catch (error) {
+        console.error("Error fetching roles", error)
+        // Fallback or empty if API fails
+        setRoles([])
+    }
   }
 
   const addStep = () => {
     if (!newStep.stageName) return
-    const step = {
+    
+    // Map UI single selection to backend array expected by Engine
+    const stepPayload = {
         ...newStep,
         stepOrder: steps.length + 1
     }
-    setSteps([...steps, step])
+    
+    if (newStep.approverType === 'ROLE' && newStep.approverRoleId) {
+        stepPayload.roleIds = [newStep.approverRoleId]
+    }
+
+    setSteps([...steps, stepPayload])
     setNewStep({ stageName: '', approverType: 'ROLE', approverRoleId: '', mode: 'ANY_ONE' })
   }
 
@@ -70,7 +79,14 @@ const StepsBuilder = ({ steps, setSteps }) => {
                      <div className="flex-1">
                          <h5 className="text-sm font-bold text-gray-800">{step.stageName}</h5>
                          <p className="text-xs text-gray-500">
-                             Assignee: {step.approverType === 'ROLE' ? roles.find(r=>r._id === step.approverRoleId)?.name || step.approverRoleId : 'Custom'} 
+                             Assignee: {
+                                step.approverType === 'ROLE' ? (
+                                    (() => {
+                                        const rId = step.approverRoleId || (step.roleIds && step.roleIds[0])
+                                        return roles.find(r=>r._id === rId)?.name || rId || 'Unknown Role'
+                                    })()
+                                ) : 'Custom'
+                             } 
                              <span className="mx-1">•</span>
                              Mode: {step.mode}
                          </p>

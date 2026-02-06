@@ -13,8 +13,8 @@ const RequestList = () => {
 
     const fetchRequests = async () => {
         try {
-            const res = await api.get('/api/requests/my')
-            setRequests(res.data)
+            const res = await api.get('/api/workflow/requests/my')
+            setRequests(res.data.data || [])
         } catch (error) {
             console.error("Error fetching my requests", error)
         }
