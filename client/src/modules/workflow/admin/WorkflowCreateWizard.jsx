@@ -9,10 +9,23 @@ const WorkflowCreateWizard = () => {
     const [formFields, setFormFields] = useState([])
     const [approvalSteps, setApprovalSteps] = useState([])
     const [roles, setRoles] = useState([])
+    const [users, setUsers] = useState([])
     const [submitting, setSubmitting] = useState(false)
 
     useEffect(() => {
-        api.getRoles().then(res => setRoles(res.data.data)).catch(console.error)
+        const fetchData = async () => {
+             try {
+                 const [roleRes, userRes] = await Promise.all([
+                     api.getRoles(),
+                     api.getUsers()
+                 ])
+                 setRoles(roleRes.data.data)
+                 setUsers(userRes.data.users)
+             } catch (err) {
+                 console.error(err)
+             }
+        }
+        fetchData()
     }, [])
 
     const addFormField = () => {
@@ -53,7 +66,8 @@ const WorkflowCreateWizard = () => {
             // Process steps (ensure roleIds is array if not already)
             const processedSteps = approvalSteps.map(s => ({
                 ...s,
-                roleIds: Array.isArray(s.roleIds) ? s.roleIds : [s.roleIds], // UI might give single ID
+                roleIds: Array.isArray(s.roleIds) ? s.roleIds : (s.roleIds ? [s.roleIds] : []), 
+                userIds: s.userId ? [s.userId] : [],
                 mode: 'ANY_ONE' // Default for now
             }))
 
@@ -127,12 +141,19 @@ const WorkflowCreateWizard = () => {
                             <input placeholder="Stage Name" value={step.stageName} onChange={e => updateApprovalStep(idx, 'stageName', e.target.value)} />
                             <select value={step.approverType} onChange={e => updateApprovalStep(idx, 'approverType', e.target.value)}>
                                 <option value="ROLE">Role</option>
+                                <option value="USER">User</option>
                                 <option value="MANAGER_OF_INITIATOR">Reporting Manager</option>
                             </select>
                             {step.approverType === 'ROLE' && (
                                 <select onChange={e => updateApprovalStep(idx, 'roleIds', [e.target.value])}>
                                     <option value="">Select Role</option>
                                     {roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
+                                </select>
+                            )}
+                            {step.approverType === 'USER' && (
+                                <select onChange={e => updateApprovalStep(idx, 'userId', e.target.value)}>
+                                    <option value="">Select User</option>
+                                    {users.map(u => <option key={u._id} value={u._id}>{u.name} ({u.email})</option>)}
                                 </select>
                             )}
                             {/* Simple Condition UI */}

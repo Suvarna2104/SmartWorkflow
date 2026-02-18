@@ -21,6 +21,44 @@ export const getRoles = async (req, res) => {
     }
 }
 
+// Get all unique roles from User collection (both legacy 'role' and 'roles' relation)
+export const getUserRoles = async (req, res) => {
+    try {
+        const users = await User.find().populate('roles')
+        const rolesMap = new Map()
+
+        users.forEach(user => {
+            // Check legacy role string
+            if (user.role && typeof user.role === 'string') {
+                const standardizedParam = user.role.trim()
+                if (standardizedParam) {
+                    // We use the name as ID for string-only roles to keep it unique
+                    if (!rolesMap.has(standardizedParam)) {
+                        rolesMap.set(standardizedParam, { _id: standardizedParam, name: standardizedParam })
+                    }
+                }
+            }
+
+            // Check roles array (populated)
+            if (user.roles && Array.isArray(user.roles)) {
+                user.roles.forEach(r => {
+                    if (r && r._id && r.name) {
+                        if (!rolesMap.has(r._id.toString())) {
+                            rolesMap.set(r._id.toString(), { _id: r._id, name: r.name })
+                        }
+                    }
+                })
+            }
+        })
+
+        const uniqueRoles = Array.from(rolesMap.values())
+        res.status(200).json({ success: true, data: uniqueRoles })
+
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message })
+    }
+}
+
 export const createUser = async (req, res) => {
     try {
         // Admin creates user

@@ -33,7 +33,7 @@ const workflowSchema = new mongoose.Schema({
         label: { type: String, required: true },
         type: {
             type: String,
-            enum: ['text', 'number', 'date', 'select', 'file'],
+            enum: ['text', 'number', 'date', 'select', 'file', 'textarea'],
             required: true
         },
         required: { type: Boolean, default: false },

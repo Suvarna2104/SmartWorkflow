@@ -2,10 +2,30 @@ import User from '../model/User.js'
 import Role from '../model/Role.js'
 import bcrypt from 'bcryptjs'
 
-// Get all users
+// Get all users (with optional role filter)
 export const getUsers = async (req, res) => {
     try {
-        const users = await User.find().select('-password')
+        const { role, roleId } = req.query
+        let query = {}
+
+        if (roleId) {
+            query.roles = roleId
+        } else if (role) {
+            // Find role by name first to get ID, or fallback to legacy string match
+            const roleDoc = await Role.findOne({ name: role })
+            if (roleDoc) {
+                query = {
+                    $or: [
+                        { roles: roleDoc._id },
+                        { role: role } // Legacy support
+                    ]
+                }
+            } else {
+                query.role = role // fallback
+            }
+        }
+
+        const users = await User.find(query).select('-password').populate('roles')
         res.status(200).json({ success: true, users })
     } catch (error) {
         res.status(500).json({ success: false, msg: 'Server Error', error })

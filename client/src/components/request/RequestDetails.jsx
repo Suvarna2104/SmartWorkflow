@@ -3,8 +3,13 @@ import api from '../../api'
 
 const RequestDetails = ({ requestId, onClose }) => {
     const [request, setRequest] = useState(null)
+    const [user, setUser] = useState(null)
 
     useEffect(() => {
+        const storedUser = localStorage.getItem('user')
+        if (storedUser) {
+            setUser(JSON.parse(storedUser))
+        }
         fetchRequest()
     }, [requestId])
 
@@ -17,11 +22,32 @@ const RequestDetails = ({ requestId, onClose }) => {
         }
     }
 
+    const handleApprove = async () => {
+        if (!window.confirm('Are you sure you want to approve this request?')) return;
+
+        try {
+            await api.post(`/api/workflow/requests/${requestId}/action`, { 
+                action: 'APPROVE', 
+                comment: 'Approved via Request Details UI' 
+            })
+            // Refresh details
+            fetchRequest()
+        } catch (error) {
+            console.error("Error approving request", error)
+            alert('Failed to approve request')
+        }
+    }
+
     if (!request) return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
            <div className="bg-white p-6 rounded-xl text-center">Loading...</div>
         </div>
     )
+
+    // Check if current user can approve
+    const isAssignee = user && request.currentAssignees?.includes(user._id)
+    const isAdmin = user && (user.role === 'admin' || user.roles?.some(r => r.name === 'Admin'))
+    const canApprove = (isAssignee || isAdmin) && request.status === 'IN_PROGRESS'
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -40,7 +66,9 @@ const RequestDetails = ({ requestId, onClose }) => {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-blue-50 p-4 rounded-lg">
                         <div>
                             <p className="text-xs text-gray-500 uppercase">Status</p>
-                            <span className="font-bold text-blue-800">{request.status}</span>
+                            <span className={`font-bold ${request.status === 'APPROVED' ? 'text-green-600' : 'text-blue-800'}`}>
+                                {request.status === 'IN_PROGRESS' ? 'IN PROGRESS' : request.status}
+                            </span>
                         </div>
                         <div>
                             <p className="text-xs text-gray-500 uppercase">Initiated By</p>
@@ -100,7 +128,16 @@ const RequestDetails = ({ requestId, onClose }) => {
                     </div>
                 </div>
 
-                <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+                <div className="px-6 py-4 border-t border-gray-100 flex justify-end space-x-3">
+                    {canApprove && (
+                        <button
+                            onClick={handleApprove}
+                            className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center"
+                        >
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                            Approve Request
+                        </button>
+                    )}
                     <button
                         onClick={onClose}
                         className="px-5 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium shadow-sm transition-colors"

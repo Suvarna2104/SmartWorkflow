@@ -62,6 +62,11 @@ const Admin = () => {
     { label: 'My Requests', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
   ]
 
+  // Add "All Requests" for Admin
+  if (user && (user.role === 'admin' || (user.roles && user.roles.some(r => r.name === 'Admin')))) {
+      menuItems.push({ label: 'All Requests', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' })
+  }
+
   // Common Stats for ALL users (can make dynamic later)
   const statsItems = [
     { label: 'Active Requests', value: '12', color: 'border-blue-500' },
@@ -218,7 +223,8 @@ const Admin = () => {
         )}
 
         {/* Tab Components */}
-        {activeTab === 'My Requests' && <RequestList />}
+        {activeTab === 'My Requests' && <RequestList mode="my" />}
+        {activeTab === 'All Requests' && <RequestList mode="all" />}
         {activeTab === 'Pending Approvals' && <PendingApprovals />}
         {activeTab === 'User Management' && <UserManagement ref={userManagementRef} />}
         {activeTab === 'Workflow Builder' && <WorkflowBuilder ref={workflowBuilderRef} />}

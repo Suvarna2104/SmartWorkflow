@@ -2,58 +2,111 @@ import React, { useState, useEffect } from 'react'
 import api from '../../api'
 
 const StepsBuilder = ({ steps, setSteps }) => {
-  const [roles, setRoles] = useState([]) // Need to fetch roles
+  const [roles, setRoles] = useState([]) 
+  const [users, setUsers] = useState([])
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState('') // Stores the Role ID selected in "Assign Type"
+  const [selectedAssignee, setSelectedAssignee] = useState('') // Stores User ID or 'ALL_ROLE'
+  
   const [newStep, setNewStep] = useState({
       stageName: '',
       approverType: 'ROLE',
       approverRoleId: '',
+      userIds: [], 
       mode: 'ANY_ONE'
   })
 
   useEffect(() => {
-    // Fetch system roles (mock for now if API not ready, but Role model exists)
-    // We haven't implemented getRoles API yet on backend? 
-    // Wait, we didn't add RoleController/Routes.
-    // I should add getRoles endpoint or just hardcode for demo if stuck.
-    // Let's assume we will add getRoles quickly or user has none yet.
-    // For now, I'll fetch users and unique roles or add a quick getRoles endpoint.
-    // Actually, UserManagement likely needs getRoles too.
-    // I'll try to fetch from /api/users/roles if it exists, otherwise mock.
-    // Or fetch Users and extract roles.
-    
-    // TEMPORARY: Mock roles or try to fetch
      fetchRoles()
+     fetchUsers()
   }, [])
 
   const fetchRoles = async () => {
     try {
-        const res = await api.get('/api/workflow/admin/roles')
-        console.log("Fetched Roles:", res.data)
-        if (Array.isArray(res.data)) {
-            setRoles(res.data)
+        const res = await api.get('/api/workflow/admin/user-roles') // Use the new endpoint
+        if (res.data && Array.isArray(res.data.data)) {
+            setRoles(res.data.data)
+        } else if (Array.isArray(res.data)) {
+             setRoles(res.data)
         }
     } catch (error) {
         console.error("Error fetching roles", error)
-        // Fallback or empty if API fails
         setRoles([])
     }
   }
 
+  const fetchUsers = async () => {
+    try {
+        const res = await api.get('/api/users')
+        if (res.data && Array.isArray(res.data.users)) {
+             setUsers(res.data.users)
+        }
+    } catch (error) {
+        console.error("Error fetching users", error)
+        setUsers([])
+    }
+  }
+
+  // Filter users based on selected role
+  const getFilteredUsers = () => {
+      if (!selectedRoleFilter) return []
+      return users.filter(u => {
+          // Check legacy 'role' string
+          if (u.role && roles.find(r => r._id === selectedRoleFilter)?.name === u.role) return true;
+          // Check 'roles' array
+          if (u.roles && u.roles.some(r => (typeof r === 'string' ? r : r._id) === selectedRoleFilter)) return true;
+          return false;
+      })
+  }
+
+  const handleAssigneeChange = (val) => {
+      setSelectedAssignee(val)
+      
+      if (val === 'ALL_ROLE') {
+          // Assign to the Role itself
+          setNewStep({
+              ...newStep, 
+              approverType: 'ROLE',
+              approverRoleId: selectedRoleFilter,
+              userIds: []
+          })
+      } else {
+          // Assign to a specific User
+          setNewStep({
+              ...newStep,
+              approverType: 'USER',
+              approverRoleId: '', // Clear role ID if user is selected? Or keep it for reference? System expects cleared for USER type.
+              userIds: [val]
+          })
+      }
+  }
+
   const addStep = () => {
-    if (!newStep.stageName) return
-    
-    // Map UI single selection to backend array expected by Engine
+    if (!newStep.stageName) return alert('Please enter a stage name')
+    if (!selectedRoleFilter) return alert('Please select an Assign Type (Role)')
+    if (!selectedAssignee) return alert('Please select who to assign to')
+
     const stepPayload = {
-        ...newStep,
+         ...newStep,
         stepOrder: steps.length + 1
     }
     
-    if (newStep.approverType === 'ROLE' && newStep.approverRoleId) {
-        stepPayload.roleIds = [newStep.approverRoleId]
+    // Final check to ensure payload is correct based on selection
+    if (selectedAssignee === 'ALL_ROLE') {
+         stepPayload.approverType = 'ROLE'
+         stepPayload.roleIds = [selectedRoleFilter]
+         stepPayload.userIds = []
+    } else {
+         stepPayload.approverType = 'USER'
+         stepPayload.userIds = [selectedAssignee]
+         stepPayload.roleIds = [] // specific user, no role broadcast
     }
 
     setSteps([...steps, stepPayload])
-    setNewStep({ stageName: '', approverType: 'ROLE', approverRoleId: '', mode: 'ANY_ONE' })
+    
+    // Reset form
+    setNewStep({ stageName: '', approverType: 'ROLE', approverRoleId: '', userIds: [], mode: 'ANY_ONE' })
+    setSelectedRoleFilter('')
+    setSelectedAssignee('')
   }
 
   const removeStep = (index) => {
@@ -79,14 +132,23 @@ const StepsBuilder = ({ steps, setSteps }) => {
                      <div className="flex-1">
                          <h5 className="text-sm font-bold text-gray-800">{step.stageName}</h5>
                          <p className="text-xs text-gray-500">
-                             Assignee: {
-                                step.approverType === 'ROLE' ? (
-                                    (() => {
-                                        const rId = step.approverRoleId || (step.roleIds && step.roleIds[0])
-                                        return roles.find(r=>r._id === rId)?.name || rId || 'Unknown Role'
-                                    })()
-                                ) : 'Custom'
-                             } 
+                             Assignee: <span className="font-semibold text-gray-700">
+                                {
+                                   step.approverType === 'ROLE' ? (
+                                       (() => {
+                                           const rId = step.approverRoleId || (step.roleIds && step.roleIds[0])
+                                           return roles.find(r=>r._id === rId)?.name || 'Unknown Role'
+                                       })()
+                                   ) : (
+                                       (() => {
+                                           const uId = step.userIds && step.userIds[0]
+                                           return users.find(u=>u._id === uId)?.name || 'Unknown User'
+                                       })()
+                                   )
+                                } 
+                             </span>
+                             <span className="mx-1">•</span>
+                             Type: {step.approverType}
                              <span className="mx-1">•</span>
                              Mode: {step.mode}
                          </p>
@@ -113,11 +175,16 @@ const StepsBuilder = ({ steps, setSteps }) => {
                     placeholder="e.g. Manager Approval"
                 />
             </div>
+
+            {/* Assign Type Dropdown (Role Filter) */}
             <div className="w-32">
-                 <label className="text-xs font-semibold text-gray-600">Assign To</label>
+                 <label className="text-xs font-semibold text-gray-600">Assign Type</label>
                  <select 
-                    value={newStep.approverRoleId}
-                    onChange={(e) => setNewStep({...newStep, approverRoleId: e.target.value})}
+                    value={selectedRoleFilter}
+                    onChange={(e) => {
+                        setSelectedRoleFilter(e.target.value)
+                        setSelectedAssignee('') // Reset 2nd dropdown
+                    }}
                     className="w-full border rounded px-2 py-1 text-sm bg-white"
                  >
                      <option value="">Select Role</option>
@@ -126,6 +193,30 @@ const StepsBuilder = ({ steps, setSteps }) => {
                      ))}
                  </select>
             </div>
+
+            {/* Assign To Dropdown (Filtered Users) */}
+            <div className="w-40">
+                 <label className="text-xs font-semibold text-gray-600">Assign To</label>
+                 <select 
+                    value={selectedAssignee}
+                    onChange={(e) => handleAssigneeChange(e.target.value)}
+                    className="w-full border rounded px-2 py-1 text-sm bg-white"
+                    disabled={!selectedRoleFilter}
+                 >
+                     <option value="">Select User</option>
+                     {selectedRoleFilter && (
+                         <>
+                             <option value="ALL_ROLE" className="font-bold">
+                                 All {roles.find(r => r._id === selectedRoleFilter)?.name || 'Users'}
+                             </option>
+                             {getFilteredUsers().map(u => (
+                                 <option key={u._id} value={u._id}>{u.name}</option>
+                             ))}
+                         </>
+                     )}
+                 </select>
+            </div>
+
              <div className="w-28">
                  <label className="text-xs font-semibold text-gray-600">Mode</label>
                  <select 

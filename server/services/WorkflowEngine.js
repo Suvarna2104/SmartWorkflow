@@ -31,8 +31,16 @@ const computeAssignees = async (step, initiatorUserId) => {
             : (step.approverRoleId ? [step.approverRoleId] : [])
 
         if (rolesToFind.length > 0) {
-            const users = await User.find({ roles: { $in: rolesToFind }, isActive: true }).select('_id')
-            assigneeIds = users.map(u => u._id.toString())
+            // Requirement: Pick first active user (deterministic)
+            // We sort by createdAt to be deterministic.
+            const users = await User.find({ roles: { $in: rolesToFind }, isActive: true })
+                .sort({ createdAt: 1 })
+                .limit(1)
+                .select('_id')
+
+            if (users.length > 0) {
+                assigneeIds = [users[0]._id.toString()]
+            }
         }
     }
     else if (step.approverType === 'USER' && step.userIds?.length > 0) {
@@ -82,17 +90,23 @@ export const moveToNextAssignableStep = async (requestId, currentStepIndex = -1)
 
         // 4. Check if Assignees Empty after removal
         if (assignees.length === 0) {
-            // Log AUTO_SKIP_SELF
+            // FIXED: Do NOT auto-skip if it's simply because we found no one (unless explicit skip logic exists)
+            // If we skip here, we risk falling through to "APPROVED" without anyone looking at it.
+            // Instead, we mark as PENDING_ASSIGNMENT and stop here.
+
+            // Log Pending Assignment
             await ApprovalAction.create({
                 requestId: request._id,
                 stepIndex: nextIndex,
-                action: 'AUTO_SKIP_SELF',
-                comment: 'Skipped because initiator was the only assignee or no assignees found.'
+                action: 'ERROR_NO_ASSIGNEES',
+                comment: 'Workflow halted: No assignees found for this step.'
             })
 
-            // Advance loop
-            nextIndex++
-            continue
+            request.currentStepIndex = nextIndex
+            request.currentAssignees = [] // No one assigned
+            request.status = 'PENDING_ASSIGNMENT' // New Status to indicate stuck
+            foundStep = true // We "found" the step, but we are stuck on it.
+            break
         }
 
         // Found a valid step with assignees
@@ -104,10 +118,22 @@ export const moveToNextAssignableStep = async (requestId, currentStepIndex = -1)
     }
 
     if (!foundStep) {
-        // Workflow Finished
-        request.status = 'APPROVED'
-        request.currentAssignees = []
-        request.currentStepIndex = nextIndex // Points past the last step
+        // Workflow Finished check or Just Filtered out?
+        // If nextIndex >= length, it truly finished.
+        if (nextIndex >= workflow.steps.length) {
+            request.status = 'APPROVED'
+            request.currentAssignees = []
+            request.currentStepIndex = nextIndex
+        } else {
+            // We are here because `foundStep` is false, but we didn't exit the loop via break?
+            // Actually, the loop continues until nextIndex < length.
+            // If we exit the loop and foundStep is false, it means we scanned all remaining steps and none were applicable?
+            // Or they were applicable but had no assignees (handled inside loop now).
+            // If all remaining steps were skipped due to conditions:
+            request.status = 'APPROVED'
+            request.currentAssignees = []
+            request.currentStepIndex = nextIndex
+        }
     }
 
     await request.save()
@@ -189,6 +215,10 @@ export const processAction = async (requestId, userId, action, comment) => {
             return await moveToNextAssignableStep(requestId, stepIndex)
         }
 
-        return request
     }
+}
+
+// Helper: Wrapper for RequestController to match (requestId, action, userId, comment) signature
+export const advanceRequest = async (requestId, action, userId, comment) => {
+    return await processAction(requestId, userId, action, comment)
 }

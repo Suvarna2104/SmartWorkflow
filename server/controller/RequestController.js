@@ -1,7 +1,7 @@
 import RequestInstance from '../model/RequestInstance.js'
 import WorkflowDefinition from '../model/WorkflowDefinition.js'
 import User from '../model/User.js'
-import { advanceRequest } from '../services/WorkflowEngine.js'
+import { advanceRequest, moveToNextAssignableStep } from '../services/WorkflowEngine.js'
 
 export const createRequest = async (req, res) => {
     try {
@@ -18,8 +18,8 @@ export const createRequest = async (req, res) => {
             initiatorUserId: req.user._id,
             formData,
             attachments: attachments || [],
-            currentStepIndex: -1, // Will be advanced to 0
-            status: 'InProgress',
+            currentStepIndex: -1,
+            status: 'IN_PROGRESS',
             history: [{
                 stepIndex: -1,
                 action: 'SUBMIT',
@@ -31,8 +31,8 @@ export const createRequest = async (req, res) => {
 
         await newRequest.save()
 
-        // Advance to first step (Step 0)
-        await advanceRequest(newRequest._id, 'APPROVE', req.user._id, 'Initial Submit')
+        // Fix: Use moveToNextAssignableStep to properly assign first step instead of auto-approving
+        await moveToNextAssignableStep(newRequest._id, -1)
 
         // Fetch updated to return
         const updatedRequest = await RequestInstance.findById(newRequest._id).populate('workflowId')
@@ -41,15 +41,34 @@ export const createRequest = async (req, res) => {
     } catch (error) {
         console.error(error)
         res.status(500).json({ msg: 'Server Error', error: error.message })
-    }
-}
+    } 
+} 
 
 export const getMyRequests = async (req, res) => {
     try {
         const requests = await RequestInstance.find({ initiatorUserId: req.user._id })
             .populate('workflowId', 'name version')
             .sort('-createdAt')
-        res.json(requests)
+        res.json({ success: true, data: requests }) // Adjusted to consistent response format
+    } catch (error) {
+        res.status(500).json({ msg: 'Server Error', error: error.message })
+    }
+}
+
+export const getAllRequests = async (req, res) => {
+    try {
+        // Strict Admin Check
+        const isAdmin = req.user.role === 'admin' || (req.user.roles && req.user.roles.some(r => r.name === 'Admin'))
+        if (!isAdmin) {
+            return res.status(403).json({ msg: 'Access Denied: Admins Only' })
+        }
+
+        const requests = await RequestInstance.find()
+            .populate('workflowId', 'name version')
+            .populate('initiatorUserId', 'name email')
+            .sort('-createdAt')
+
+        res.json({ success: true, data: requests })
     } catch (error) {
         res.status(500).json({ msg: 'Server Error', error: error.message })
     }
@@ -59,7 +78,7 @@ export const getPendingApprovals = async (req, res) => {
     try {
         const requests = await RequestInstance.find({
             currentAssignees: req.user._id,
-            status: 'InProgress'
+            status: 'IN_PROGRESS'
         })
             .populate('workflowId', 'name')
             .populate('initiatorUserId', 'name email')
@@ -119,7 +138,7 @@ export const getRequestById = async (req, res) => {
             return res.status(403).json({ msg: 'Access Denied' })
         }
 
-        res.json(request)
+        res.json({ data: request })
     } catch (error) {
         res.status(500).json({ msg: 'Server Error', error: error.message })
     }

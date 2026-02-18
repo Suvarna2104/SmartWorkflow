@@ -14,7 +14,7 @@ import workflowMainRouter from './routes/workflow/index.js'
 const app = express()
 dotenv.config()
 app.use(cors())
-app.use(express.json()) 
+app.use(express.json())
 app.use(loggerMiddleware)
 
 app.use('/auth/login', loginRoute)
@@ -43,7 +43,7 @@ mongoose.connect(process.env.MONGO_URI)
     })
     .catch(err => console.error("Error Connecting MongoDB : ", err))
 
-app.get('/ok', verifyToken, (req, res) => {
+app.get('/ok', (req, res) => {
     try {
 
         console.log(`Path : ${req.url}\n Method : ${req.method}`)

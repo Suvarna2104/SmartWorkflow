@@ -3,6 +3,19 @@ import WorkflowDefinition from "../model/WorkflowDefinition.js"
 export const createWorkflow = async (req, res) => {
     try {
         const { name, description, formSchema, steps } = req.body
+
+        // Validate Steps
+        if (steps && Array.isArray(steps)) {
+            for (const step of steps) {
+                if (step.approverType === 'ROLE' && (!step.roleIds || step.roleIds.length === 0)) {
+                    return res.status(400).json({ msg: `Step '${step.stageName}' requires at least one Role` })
+                }
+                if (step.approverType === 'USER' && (!step.userIds || step.userIds.length === 0)) {
+                    return res.status(400).json({ msg: `Step '${step.stageName}' requires at least one User` })
+                }
+            }
+        }
+
         const newWorkflow = new WorkflowDefinition({
             name,
             description,
@@ -53,6 +66,19 @@ export const updateWorkflow = async (req, res) => {
 
         oldWorkflow.isActive = false
         await oldWorkflow.save()
+
+        // Validate Steps if provided in update
+        const steps = formData.steps || oldWorkflow.steps
+        if (steps && Array.isArray(steps)) {
+            for (const step of steps) {
+                if (step.approverType === 'ROLE' && (!step.roleIds || step.roleIds.length === 0)) {
+                    return res.status(400).json({ msg: `Step '${step.stageName}' requires at least one Role` })
+                }
+                if (step.approverType === 'USER' && (!step.userIds || step.userIds.length === 0)) {
+                    return res.status(400).json({ msg: `Step '${step.stageName}' requires at least one User` })
+                }
+            }
+        }
 
         const newWorkflow = new WorkflowDefinition({
             ...formData,

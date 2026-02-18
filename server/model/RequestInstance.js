@@ -7,11 +7,19 @@ const requestInstanceSchema = new mongoose.Schema({
     formData: { type: mongoose.Schema.Types.Mixed }, // Object with key-value pairs
     status: {
         type: String,
-        enum: ['DRAFT', 'IN_PROGRESS', 'APPROVED', 'REJECTED', 'RETURNED'],
+        enum: ['DRAFT', 'IN_PROGRESS', 'APPROVED', 'REJECTED', 'RETURNED', 'PENDING_ASSIGNMENT'],
         default: 'IN_PROGRESS'
     },
     currentStepIndex: { type: Number, default: 0 },
     currentAssignees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    kanbanStageKey: { type: String },
+    history: [{
+        stepIndex: Number,
+        action: String,
+        byUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        comment: String,
+        timestamp: Date
+    }],
     stepApprovals: [{
         stepIndex: Number,
         approvedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]

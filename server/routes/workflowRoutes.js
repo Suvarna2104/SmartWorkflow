@@ -8,11 +8,9 @@ const router = express.Router()
 router.use(verifyToken)
 
 // Only Admins can manage workflows
-router.post('/', requireRole(['Admin', 'admin']), createWorkflow)
-router.get('/', getWorkflows) // Employees can list active workflows? Yes, to start them. 
-// Wait, getWorkflows in controller returns ALL active.
-// Maybe filter? For now, list all.
+router.post('/', requireRole(['Admin', 'SuperAdmin']), createWorkflow)
+router.get('/', getWorkflows)
 router.get('/:id', getWorkflowById)
-router.put('/:id', requireRole(['Admin', 'admin']), updateWorkflow)
+router.put('/:id', requireRole(['Admin', 'SuperAdmin']), updateWorkflow)
 
 export default router

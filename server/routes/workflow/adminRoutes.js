@@ -7,9 +7,10 @@ const router = express.Router()
 
 // Apply Auth and Admin checks
 router.use(verifyToken)
-router.use(requireRole('admin'))
+router.use(requireRole(['Admin', 'SuperAdmin']))
 
 router.get('/roles', AdminController.getRoles)
+router.get('/user-roles', AdminController.getUserRoles) // New Endpoint for StepsBuilder
 router.post('/roles', AdminController.createRole)
 
 router.post('/users', AdminController.createUser)

@@ -3,9 +3,14 @@ import User from '../model/User.js'
 
 const verifyToken = async (req, res, next) => {
     try {
-        const token = req.headers.authorization.split(' ')[1]
+        const authHeader = req.headers.authorization
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, msg: 'Token Not Provided or Invalid Format' })
+        }
+
+        const token = authHeader.split(' ')[1]
         if (!token) {
-            return res.status(401).json({ success: false, msg: 'Token Not Provided' })
+            return res.status(401).json({ success: false, msg: 'Token Missing' })
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET)
@@ -18,18 +23,25 @@ const verifyToken = async (req, res, next) => {
             return res.status(401).json({ success: false, msg: 'User Not Found' })
         }
 
-        // Compatibility: If roles array is empty but legacy role exists, treat it as a role object
-        if (user.roles.length === 0 && user.role) {
-            // Mock a role object for the middleware check
-            user.roles.push({ name: user.role })
+        // Compatibility: Ensure roles is always an array of objects
+        if (!user.roles) user.roles = []
+
+        // If legacy role string exists, add it to roles array if not already present
+        if (user.role && typeof user.role === 'string') {
+            const exists = user.roles.find(r => r.name === user.role)
+            if (!exists) {
+                user.roles.push({ name: user.role, _id: 'legacy_role' })
+            }
         }
 
         req.user = user
         next()
 
     } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            return res.status(401).json({ success: false, msg: 'Token Expired' })
+        }
         return res.status(500).json({ success: false, msg: 'Server Error', err })
-
     }
 }
 
