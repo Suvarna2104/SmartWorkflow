@@ -34,7 +34,8 @@ mongoose.connect(process.env.MONGO_URI)
         // Auto-seed Roles
         const predefinedRoles = ['Admin', 'Manager', 'Employee', 'HR']
         for (const roleName of predefinedRoles) {
-            const exists = await Role.findOne({ name: roleName })
+            // Check case-insensitive to avoid duplicates
+            const exists = await Role.findOne({ name: { $regex: new RegExp(`^${roleName}$`, 'i') } })
             if (!exists) {
                 await Role.create({ name: roleName })
                 console.log(`Seeded Role: ${roleName}`)
