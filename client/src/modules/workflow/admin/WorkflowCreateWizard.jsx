@@ -145,8 +145,15 @@ const WorkflowCreateWizard = () => {
                                 <option value="MANAGER_OF_INITIATOR">Reporting Manager</option>
                             </select>
                             {step.approverType === 'ROLE' && (
-                                <select onChange={e => updateApprovalStep(idx, 'roleIds', [e.target.value])}>
-                                    <option value="">Select Role</option>
+                                <select 
+                                    multiple 
+                                    value={step.roleIds || []} 
+                                    onChange={e => {
+                                        const selected = Array.from(e.target.selectedOptions, option => option.value)
+                                        updateApprovalStep(idx, 'roleIds', selected)
+                                    }}
+                                    style={{ height: '100px' }}
+                                >
                                     {roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
                                 </select>
                             )}
