@@ -142,7 +142,7 @@ const Admin = () => {
   ]
 
   // Add "All Requests" for Admin
-  if (user && (['admin', 'Admin'].includes(user.role) || (user.roles && user.roles.some(r => ['Admin', 'admin'].includes(r.name))))) {
+  if (user && (user.role === 'Admin' || (user.roles && user.roles.some(r => r.name === 'Admin')))) {
       menuItems.push({ label: 'All Requests', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' })
   }
 
@@ -181,7 +181,7 @@ const Admin = () => {
             ))}
 
           {/* Admin Tools Section */}
-          {(['admin', 'Admin'].includes(user.role) || (user.roles && user.roles.some(r => ['Admin', 'admin'].includes(r.name)))) && (
+          {(user.role === 'Admin' || (user.roles && user.roles.some(r => r.name === 'Admin'))) && (
             <div className="mt-8 pt-6 border-t border-slate-700/50">
               <span className="px-5 text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 block">Admin Tools</span>
               <button 
@@ -374,8 +374,9 @@ const Admin = () => {
              
              {activeTab === 'User Management' && <div className="p-0"><UserManagement ref={userManagementRef} /></div>}
              {activeTab === 'Workflow Builder' && <div className="p-0"><WorkflowBuilder ref={workflowBuilderRef} /></div>}
-             {activeTab === 'Kanban Board' && <div className="p-0 h-[calc(100vh-160px)]"><KanbanBoard /></div>}
+             {activeTab === 'Kanban Board' && <div className="p-0 h-[calc(100vh-160px)]"><KanbanBoard onCreateRequest={(wfId) => handleStartRequest(wfId)} /></div>}
         </div>
+
 
         {/* Modals */}
         {showRequestForm && (

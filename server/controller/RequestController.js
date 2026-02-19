@@ -7,6 +7,15 @@ export const createRequest = async (req, res) => {
     try {
         const { workflowId, formData, attachments } = req.body
 
+        // Safety: Validate formData keys
+        if (formData) {
+            for (const key of Object.keys(formData)) {
+                if (!key || key.trim() === '') {
+                    return res.status(400).json({ msg: 'Invalid Form Data: Field key cannot be empty' })
+                }
+            }
+        }
+
         const workflow = await WorkflowDefinition.findOne({ _id: workflowId, isActive: true })
         if (!workflow) {
             return res.status(404).json({ msg: 'Workflow not found or inactive' })
@@ -58,7 +67,7 @@ export const getMyRequests = async (req, res) => {
 export const getAllRequests = async (req, res) => {
     try {
         // Strict Admin Check
-        const isAdmin = req.user.role === 'admin' || (req.user.roles && req.user.roles.some(r => r.name === 'Admin'))
+        const isAdmin = req.user.role === 'Admin' || (req.user.roles && req.user.roles.some(r => r.name === 'Admin'))
         if (!isAdmin) {
             return res.status(403).json({ msg: 'Access Denied: Admins Only' })
         }
@@ -73,22 +82,7 @@ export const getAllRequests = async (req, res) => {
         res.status(500).json({ msg: 'Server Error', error: error.message })
     }
 }
-
-export const getPendingApprovals = async (req, res) => {
-    try {
-        const requests = await RequestInstance.find({
-            currentAssignees: req.user._id,
-            status: 'IN_PROGRESS'
-        })
-            .populate('workflowId', 'name')
-            .populate('initiatorUserId', 'name email')
-            .sort('-createdAt')
-
-        res.json(requests)
-    } catch (error) {
-        res.status(500).json({ msg: 'Server Error', error: error.message })
-    }
-}
+// ... (skip intermediate functions)
 
 export const processAction = async (req, res) => {
     try {
@@ -104,7 +98,7 @@ export const processAction = async (req, res) => {
 
         // Validate assignee
         const isAssignee = request.currentAssignees.some(id => id.toString() === req.user._id.toString())
-        const isAdmin = req.user.role === 'admin' || (req.user.roles && req.user.roles.some(r => r.name === 'Admin'))
+        const isAdmin = req.user.role === 'Admin' || (req.user.roles && req.user.roles.some(r => r.name === 'Admin'))
 
         if (!isAssignee && !isAdmin) {
             // Allow Admin to override? maybe. For now let's strict check assignee or maybe allow admin force
@@ -132,7 +126,7 @@ export const getRequestById = async (req, res) => {
         // Access Control: Initiator, Current Assignee, or Admin
         const isInitiator = request.initiatorUserId._id.toString() === req.user._id.toString()
         const isAssignee = request.currentAssignees.some(id => id.toString() === req.user._id.toString())
-        const isAdmin = req.user.role === 'admin' || (req.user.roles && req.user.roles.some(r => r.name === 'Admin'))
+        const isAdmin = req.user.role === 'Admin' || (req.user.roles && req.user.roles.some(r => r.name === 'Admin'))
 
         if (!isInitiator && !isAssignee && !isAdmin) {
             return res.status(403).json({ msg: 'Access Denied' })
@@ -158,7 +152,7 @@ export const getKanbanRequests = async (req, res) => {
 
         // Safe role check
         const roles = user.roles || []
-        const isAdmin = user.role === 'admin' || roles.some(r => r && r.name === 'Admin')
+        const isAdmin = user.role === 'Admin' || roles.some(r => r && r.name === 'Admin')
         const isAuditor = roles.some(r => r && r.name === 'Auditor')
 
         let query = { workflowId }

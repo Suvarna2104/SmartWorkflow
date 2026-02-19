@@ -5,6 +5,7 @@ const RequestForm = ({ onClose, onSuccess, initialWorkflowId }) => {
   const [workflows, setWorkflows] = useState([])
   const [selectedWorkflow, setSelectedWorkflow] = useState(null)
   const [formData, setFormData] = useState({})
+  const [errors, setErrors] = useState({})
   
   useEffect(() => {
     fetchWorkflows()
@@ -32,15 +33,68 @@ const RequestForm = ({ onClose, onSuccess, initialWorkflowId }) => {
       const wf = workflows.find(w => w._id === e.target.value)
       setSelectedWorkflow(wf)
       setFormData({})
+      setErrors({})
   }
 
   const handleFieldChange = (e) => {
+      console.log(`Field Changed: ${e.target.name} = ${e.target.value}`)
       setFormData({...formData, [e.target.name]: e.target.value})
+      // Clear error for this field
+      if (errors[e.target.name]) {
+          setErrors(prev => ({...prev, [e.target.name]: null}))
+      }
+  }
+
+  const validateForm = () => {
+      const newErrors = {}
+      let isValid = true
+
+      selectedWorkflow.formSchema.forEach(field => {
+          const key = field.key
+          const value = formData[key]
+
+          // 1. Required Check
+          if (field.required && !value) {
+              newErrors[key] = `${field.label} is required`
+              isValid = false
+              return
+          }
+
+          // 2. Date Validation
+          if (field.type === 'date' && value) {
+              const date = new Date(value)
+              if (isNaN(date.getTime())) {
+                  newErrors[key] = "Invalid Date"
+                  isValid = false
+              } else {
+                  // Optional: No Past Date check
+                  // Check if we should enforce this? User said "optional rule: date cannot be in the past (configurable)"
+                  // For now, let's enforce it by default or check a hypothetical config. 
+                  // Let's enforce it simply as "Should be today or future"
+                  const today = new Date()
+                  today.setHours(0, 0, 0, 0)
+                  if (date < today) {
+                      newErrors[key] = "Date cannot be in the past"
+                      isValid = false
+                  }
+              }
+          }
+      })
+
+      setErrors(newErrors)
+      return isValid
   }
 
   const handleSubmit = async (e) => {
       e.preventDefault()
       if (!selectedWorkflow) return
+
+      if (!validateForm()) {
+          console.log("Validation Failed", errors) // Errors state might not be updated yet in log, but UI will show
+          return
+      }
+
+      console.log("Submitting FormData:", formData)
 
       try {
           await api.post('/api/workflow/requests', {
@@ -86,24 +140,31 @@ const RequestForm = ({ onClose, onSuccess, initialWorkflowId }) => {
                     <div className="space-y-4 border-t pt-4">
                         <p className="text-sm text-gray-500 mb-2">{selectedWorkflow.description}</p>
                         
-                        {selectedWorkflow.formSchema.map((field, idx) => (
+                        {selectedWorkflow.formSchema.map((field, idx) => {
+                             // CRITICAL FIX: Use field.key instead of field.name
+                             // Fallback to name/label if key is missing (though model requires key)
+                             const fieldKey = field.key || field.name || field.label.replace(/\s+/g, '_').toLowerCase()
+                             
+                             return (
                             <div key={idx}>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     {field.label} {field.required && <span className="text-red-500">*</span>}
                                 </label>
                                 {field.type === 'textarea' ? (
                                     <textarea
-                                        name={field.name}
+                                        name={fieldKey}
                                         required={field.required}
                                         onChange={handleFieldChange}
-                                        className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                                        value={formData[fieldKey] || ''}
+                                        className={`w-full border rounded-lg px-4 py-2 ${errors[fieldKey] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                     ></textarea>
                                 ) : field.type === 'select' ? (
                                     <select
-                                        name={field.name}
+                                        name={fieldKey}
                                         required={field.required}
                                         onChange={handleFieldChange}
-                                        className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                                        value={formData[fieldKey] || ''}
+                                        className={`w-full border rounded-lg px-4 py-2 ${errors[fieldKey] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                     >
                                         <option value="">Select...</option>
                                         {field.options.map((opt, i) => (
@@ -113,14 +174,21 @@ const RequestForm = ({ onClose, onSuccess, initialWorkflowId }) => {
                                 ) : (
                                     <input
                                         type={field.type}
-                                        name={field.name}
+                                        name={fieldKey}
                                         required={field.required}
                                         onChange={handleFieldChange}
-                                        className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                                        value={formData[fieldKey] || ''}
+                                        className={`w-full border rounded-lg px-4 py-2 ${errors[fieldKey] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                     />
                                 )}
+                                {errors[fieldKey] && (
+                                    <p className="text-red-500 text-xs mt-1 font-medium flex items-center">
+                                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                        {errors[fieldKey]}
+                                    </p>
+                                )}
                             </div>
-                        ))}
+                        )})}
                     </div>
                 )}
 

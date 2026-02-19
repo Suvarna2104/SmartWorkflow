@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api'
 
-const KanbanBoard = () => {
+const KanbanBoard = ({ onCreateRequest }) => {
     const navigate = useNavigate()
     const [workflows, setWorkflows] = useState([])
     const [selectedWorkflowId, setSelectedWorkflowId] = useState('')
@@ -167,21 +167,39 @@ const KanbanBoard = () => {
     }
 
     return (
-        <div className="h-full flex flex-col p-10">
-            {/* Header / Filter */}
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-slate-800">Kanban Board</h2>
-                <div className="flex items-center space-x-4">
-                    <span className="text-sm font-medium text-slate-500">Select Workflow:</span>
-                    <select 
-                        value={selectedWorkflowId}
-                        onChange={(e) => setSelectedWorkflowId(e.target.value)}
-                        className="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-64 p-2.5 shadow-sm"
+        <div className="h-full flex flex-col bg-slate-50 p-8">
+            
+            {/* Board Controls */}
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 flex justify-end items-center">
+                
+                <div className="flex items-center space-x-3">
+                     {/* Workflow Selector acting as "Leave Application" dropdown from mockup */}
+                    <div className="relative">
+                        <select 
+                            value={selectedWorkflowId}
+                            onChange={(e) => setSelectedWorkflowId(e.target.value)}
+                            className="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-48 pl-4 pr-8 py-2.5 font-medium"
+                        >
+                            {workflows.map(wf => (
+                                <option key={wf._id} value={wf._id}>{wf.name}</option>
+                            ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
+
+                    <button className="px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
+                        Filter
+                    </button>
+                    
+                    <button 
+                        onClick={() => onCreateRequest && onCreateRequest(selectedWorkflowId)} 
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-md transition-colors flex items-center"
                     >
-                        {workflows.map(wf => (
-                            <option key={wf._id} value={wf._id}>{wf.name}</option>
-                        ))}
-                    </select>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                        Create Request
+                    </button>
                 </div>
             </div>
 
@@ -189,14 +207,25 @@ const KanbanBoard = () => {
             <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
                 <div className="flex h-full space-x-6 min-w-max">
                     {loading ? (
-                        <div className="flex items-center justify-center w-full h-64 text-slate-500">Loading Kanban...</div>
+                        <div className="flex items-center justify-center w-full h-64 text-slate-500">
+                             <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                             Loading Board...
+                        </div>
                     ) : (
-                        columns.map(col => (
-                            <div key={col.key} className={`w-80 flex flex-col rounded-xl border-t-4 ${col.color.replace('bg-', 'border-').split(' ')[0]} bg-slate-100/50 h-full`}>
+                        columns.map((col, colIdx) => {
+                            // Determine top border color based on column index/key for variety matching mockup
+                            const borderColor = 
+                                col.key === 'my' ? 'border-t-blue-500' :
+                                col.key === 'completed' ? 'border-t-emerald-500' :
+                                col.key === 'rejected' ? 'border-t-rose-500' :
+                                colIdx % 2 === 0 ? 'border-t-amber-500' : 'border-t-indigo-500' // Alternating for dynamic steps
+
+                            return (
+                            <div key={col.key} className={`w-80 flex flex-col rounded-xl bg-slate-100/50 h-full border-t-4 ${borderColor} shadow-sm border-x border-b border-slate-200`}>
                                 {/* Column Header */}
-                                <div className={`p-4 border-b border-slate-200/60 bg-white rounded-t-lg mx-1 mt-1 shadow-sm flex justify-between items-center`}>
-                                    <h3 className="font-bold text-slate-700">{col.title}</h3>
-                                    <span className="bg-slate-100 text-slate-600 text-xs font-bold px-2.5 py-1 rounded-full">{col.items.length}</span>
+                                <div className="p-4 flex justify-between items-center border-b border-slate-200/50 bg-white/50">
+                                    <h3 className="font-bold text-slate-700 text-[15px]">{col.title}</h3>
+                                    <span className="text-slate-400 text-xs font-medium">({ col.items.length })</span>
                                 </div>
 
                                 {/* Cards Container */}
@@ -205,45 +234,64 @@ const KanbanBoard = () => {
                                         <div 
                                             key={req._id}
                                             onClick={() => handleCardClick(req._id)}
-                                            className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all group"
+                                            className="bg-white p-4 rounded-xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-slate-100 cursor-pointer hover:shadow-md transition-all group relative"
                                         >
-                                            <div className="flex justify-between items-start mb-2">
-                                                <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md truncate max-w-[150px]">
-                                                    {req.workflowId?.name}
+                                            
+                                            {/* Top Row: ID and notification/status */}
+                                            <div className="flex justify-between items-start mb-3">
+                                                <span className="text-xs font-bold text-slate-500">       
+                                                    #LR-{req._id.slice(-4).toUpperCase()}
                                                 </span>
-                                                {/* Status Badge */}
-                                                <span className={`w-2 h-2 rounded-full ${
+                                                {/* Status Dot */}
+                                                <div className={`w-2.5 h-2.5 rounded-full ${
                                                     req.status === 'APPROVED' ? 'bg-emerald-500' :
                                                     req.status === 'REJECTED' ? 'bg-rose-500' :
-                                                    req.status === 'RETURNED' ? 'bg-amber-500' :
-                                                    'bg-blue-500'
-                                                }`}></span>
+                                                    'bg-amber-500' // Pending/In Progress
+                                                }`}></div>
                                             </div>
-                                            
-                                            <h4 className="text-sm font-bold text-slate-800 mb-1 line-clamp-2 leading-snug group-hover:text-blue-700">
-                                                {/* Use ID or some title if available, fallback to ID */}
-                                                Request #{req._id.slice(-6).toUpperCase()}
-                                            </h4>
 
-                                            <div className="mt-3 pt-3 border-t border-slate-50 flex items-center justify-between text-xs text-slate-500">
-                                                <div className="flex items-center">
-                                                    <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-600 mr-2">
-                                                        {req.initiatorUserId?.name ? req.initiatorUserId.name.charAt(0) : 'U'}
-                                                    </div>
-                                                    <span className="truncate max-w-[80px]">{req.initiatorUserId?.name || 'User'}</span>
-                                                </div>
-                                                <span>{new Date(req.createdAt).toLocaleDateString()}</span>
+                                            {/* Middle Row: User Info */}
+                                            <div className="flex items-center mb-4">
+                                                 <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold mr-3 shadow-sm">
+                                                    {req.initiatorUserId?.name ? req.initiatorUserId.name.charAt(0) : 'U'}
+                                                 </div>
+                                                 <div>
+                                                     <h4 className="text-sm font-bold text-slate-700 leading-none mb-1">
+                                                         {req.initiatorUserId?.name || 'Unknown User'}
+                                                     </h4>
+                                                     {/* Mock Position/Role if available or generic */}
+                                                     <p className="text-[10px] text-slate-400 font-medium">Requester</p>
+                                                 </div>
+                                            </div>
+
+                                            {/* Bottom Row: Date and Priority Badge */}
+                                            <div className="flex justify-between items-end pt-3 border-t border-slate-50 mt-2">
+                                                <span className="text-xs text-slate-400 font-medium">
+                                                    {new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </span>
+                                                
+                                                {/* Mock Priority Badge - Logic: Random/Static since field missing */}
+                                                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md ${
+                                                    req.workflowId?.name?.includes('Urgent') ? 'bg-rose-100 text-rose-600' : 
+                                                    'bg-amber-50 text-amber-600'
+                                                }`}>
+                                                    {req.workflowId?.name?.includes('Urgent') ? 'High' : 'Medium'}
+                                                </span>
                                             </div>
                                         </div>
                                     ))}
-                                    {col.items.length === 0 && (
-                                        <div className="text-center py-10 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
-                                            No requests
-                                        </div>
-                                    )}
+                                    
+                                     {/* Add New Task Button (Visual) */}
+                                     <button 
+                                        onClick={() => onCreateRequest && onCreateRequest(selectedWorkflowId)} 
+                                        className="w-full py-3 border-2 border-dashed border-slate-200 text-slate-400 rounded-xl text-sm font-medium hover:border-blue-300 hover:text-blue-500 transition-colors flex items-center justify-center mt-2"
+                                     >
+                                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                                         Add new task
+                                     </button>
                                 </div>
                             </div>
-                        ))
+                        )})
                     )}
                 </div>
             </div>

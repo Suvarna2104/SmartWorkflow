@@ -14,7 +14,7 @@ const RequestDetails = ({ requestId, onClose }) => {
             const u = JSON.parse(storedUser)
             setUser(u)
             // Fetch users if admin
-            if (u.role === 'admin' || u.role === 'Admin' || u.roles?.some(r => ['Admin', 'admin'].includes(r.name))) {
+            if (u.role === 'Admin' || u.roles?.some(r => r.name === 'Admin')) {
                 fetchUsers()
             }
         }

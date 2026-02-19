@@ -103,7 +103,7 @@ export const getKanbanRequests = async (req, res) => {
 
         // Safe role check
         const roles = user.roles || []
-        const isAdmin = user.role === 'admin' || roles.some(r => r && r.name === 'Admin')
+        const isAdmin = user.role === 'Admin' || roles.some(r => r && r.name === 'Admin')
         const isAuditor = roles.some(r => r && r.name === 'Auditor')
 
         let query = { workflowId }
