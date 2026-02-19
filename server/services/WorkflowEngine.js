@@ -33,7 +33,20 @@ const computeAssignees = async (step, initiatorUserId) => {
         if (rolesToFind.length > 0) {
             // Requirement: Pick first active user (deterministic)
             // We sort by createdAt to be deterministic.
-            const users = await User.find({ roles: { $in: rolesToFind }, isActive: true })
+
+            // Fix: Also search by legacy 'role' string for these role IDs
+            // 1. Get Role names
+            const roleDocs = await Role.find({ _id: { $in: rolesToFind } })
+            const roleNames = roleDocs.map(r => r.name)
+
+            // 2. Query Users: either in 'roles' array OR 'role' string matches name
+            const users = await User.find({
+                isActive: true,
+                $or: [
+                    { roles: { $in: rolesToFind } },
+                    { role: { $in: roleNames } } // Case sensitive match usually, but role names should be standard
+                ]
+            })
                 .sort({ createdAt: 1 })
                 .limit(1)
                 .select('_id')
@@ -154,6 +167,15 @@ export const processAction = async (requestId, userId, action, comment) => {
         comment
     })
 
+    // Sync to request.history
+    request.history.push({
+        stepIndex: request.currentStepIndex,
+        action,
+        byUserId: userId,
+        comment,
+        timestamp: new Date()
+    })
+
     if (action === 'REJECT') {
         request.status = 'REJECTED'
         request.currentAssignees = []
@@ -176,14 +198,20 @@ export const processAction = async (requestId, userId, action, comment) => {
 
     if (action === 'APPROVE') {
         // Update stepApprovals in Request
+        // Update stepApprovals in Request
         const stepIndex = request.currentStepIndex
         let stepApproval = request.stepApprovals.find(s => s.stepIndex === stepIndex)
+
         if (!stepApproval) {
-            stepApproval = { stepIndex, approvedBy: [] }
-            request.stepApprovals.push(stepApproval)
+            // Push new object, Mongoose will handle _id creation
+            request.stepApprovals.push({ stepIndex, approvedBy: [] })
+            // Re-fetch the object reference from the array to ensure we are modifying the Mongoose subdoc
+            stepApproval = request.stepApprovals.find(s => s.stepIndex === stepIndex)
         }
-        // Add user to approvedBy if not exists
-        if (!stepApproval.approvedBy.includes(userId)) {
+
+        // Add user to approvedBy if not exists (Safe ObjectId comparison)
+        const alreadyApproved = stepApproval.approvedBy.some(id => id.toString() === userId.toString())
+        if (!alreadyApproved) {
             stepApproval.approvedBy.push(userId)
         }
 

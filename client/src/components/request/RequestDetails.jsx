@@ -5,13 +5,30 @@ const RequestDetails = ({ requestId, onClose }) => {
     const [request, setRequest] = useState(null)
     const [user, setUser] = useState(null)
 
+    const [allUsers, setAllUsers] = useState([])
+    const [selectedAssignee, setSelectedAssignee] = useState('')
+
     useEffect(() => {
         const storedUser = localStorage.getItem('user')
         if (storedUser) {
-            setUser(JSON.parse(storedUser))
+            const u = JSON.parse(storedUser)
+            setUser(u)
+            // Fetch users if admin
+            if (u.role === 'admin' || u.role === 'Admin' || u.roles?.some(r => ['Admin', 'admin'].includes(r.name))) {
+                fetchUsers()
+            }
         }
         fetchRequest()
     }, [requestId])
+
+    const fetchUsers = async () => {
+        try {
+            const res = await api.get('/api/users')
+            setAllUsers(res.data.users || [])
+        } catch (error) {
+            console.error("Error fetching users", error)
+        }
+    }
 
     const fetchRequest = async () => {
         try {
@@ -38,6 +55,27 @@ const RequestDetails = ({ requestId, onClose }) => {
         }
     }
 
+    const handleRetryAssignment = async () => {
+        try {
+            await api.post(`/api/workflow/admin/requests/${requestId}/assign`, { reRun: true })
+            fetchRequest()
+            alert('Auto-assignment retried successfully')
+        } catch (error) {
+            alert(error.response?.data?.msg || 'Retry failed')
+        }
+    }
+
+    const handleForceAssign = async () => {
+        if (!selectedAssignee) return alert('Select a user')
+        try {
+            await api.post(`/api/workflow/admin/requests/${requestId}/assign`, { assignToUserId: selectedAssignee })
+            fetchRequest()
+            alert('User assigned successfully')
+        } catch (error) {
+            alert(error.response?.data?.msg || 'Assignment failed')
+        }
+    }
+
     if (!request) return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
            <div className="bg-white p-6 rounded-xl text-center">Loading...</div>
@@ -46,7 +84,7 @@ const RequestDetails = ({ requestId, onClose }) => {
 
     // Check if current user can approve
     const isAssignee = user && request.currentAssignees?.includes(user._id)
-    const isAdmin = user && (user.role === 'admin' || user.roles?.some(r => r.name === 'Admin'))
+    const isAdmin = user && (['admin', 'Admin'].includes(user.role) || user.roles?.some(r => ['Admin', 'admin'].includes(r.name)))
     const canApprove = (isAssignee || isAdmin) && request.status === 'IN_PROGRESS'
 
     return (
@@ -62,6 +100,50 @@ const RequestDetails = ({ requestId, onClose }) => {
                 </div>
 
                 <div className="p-6 space-y-8">
+                    {/* Admin Recovery Section for Stuck Requests */}
+                    {request.status === 'PENDING_ASSIGNMENT' && isAdmin && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div className="flex items-start mb-3">
+                                <svg className="w-6 h-6 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                <div>
+                                    <h4 className="font-bold text-red-700">Workflow Halted: No Assignees Found</h4>
+                                    <p className="text-sm text-red-600 mt-1">
+                                        The workflow cannot proceed because no valid users were found for the current step. 
+                                        As an admin, you can retry auto-assignment (if you added users/roles) or force-assign a specific user.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-3 mt-4 ml-8">
+                                <button 
+                                    onClick={handleRetryAssignment}
+                                    className="px-3 py-1.5 bg-white border border-red-300 text-red-700 rounded hover:bg-red-50 text-sm font-medium"
+                                >
+                                    Retry Auto-Assignment
+                                </button>
+                                <span className="text-gray-400 text-xs">OR</span>
+                                <div className="flex items-center gap-2">
+                                    <select 
+                                        value={selectedAssignee}
+                                        onChange={(e) => setSelectedAssignee(e.target.value)}
+                                        className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white"
+                                    >
+                                        <option value="">Select User to Force Assign</option>
+                                        {allUsers.map(u => (
+                                            <option key={u._id} value={u._id}>{u.name} ({u.email})</option>
+                                        ))}
+                                    </select>
+                                    <button 
+                                        onClick={handleForceAssign}
+                                        className="px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-medium"
+                                    >
+                                        Force Assign
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Header Info */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-blue-50 p-4 rounded-lg">
                         <div>

@@ -23,6 +23,21 @@ const stepSchema = new mongoose.Schema({
     }
 })
 
+// Validation: meaningful approver configuration
+stepSchema.path('roleIds').validate(function (value) {
+    if (this.approverType === 'ROLE') {
+        return value && value.length > 0
+    }
+    return true
+}, 'At least one Role must be selected for ROLE approver type.')
+
+stepSchema.path('userIds').validate(function (value) {
+    if (this.approverType === 'USER') {
+        return value && value.length > 0
+    }
+    return true
+}, 'At least one User must be selected for USER approver type.')
+
 const workflowSchema = new mongoose.Schema({
     name: { type: String, required: true },
     description: { type: String },

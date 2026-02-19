@@ -12,7 +12,7 @@ const approvalActionSchema = new mongoose.Schema({
     },
     action: {
         type: String,
-        enum: ['SUBMIT', 'APPROVE', 'REJECT', 'RETURN', 'AUTO_SKIP_SELF'],
+        enum: ['SUBMIT', 'APPROVE', 'REJECT', 'RETURN', 'AUTO_SKIP_SELF', 'ERROR_NO_ASSIGNEES'],
         required: true
     },
     byUserId: {

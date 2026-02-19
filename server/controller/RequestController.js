@@ -41,8 +41,8 @@ export const createRequest = async (req, res) => {
     } catch (error) {
         console.error(error)
         res.status(500).json({ msg: 'Server Error', error: error.message })
-    } 
-} 
+    }
+}
 
 export const getMyRequests = async (req, res) => {
     try {
@@ -140,6 +140,46 @@ export const getRequestById = async (req, res) => {
 
         res.json({ data: request })
     } catch (error) {
+        res.status(500).json({ msg: 'Server Error', error: error.message })
+    }
+}
+
+export const getKanbanRequests = async (req, res) => {
+    try {
+        const { workflowId } = req.query
+        if (!workflowId) {
+            return res.status(400).json({ msg: 'Workflow ID is required' })
+        }
+
+        const user = req.user
+        if (!user) {
+            return res.status(401).json({ msg: 'User context missing' })
+        }
+
+        // Safe role check
+        const roles = user.roles || []
+        const isAdmin = user.role === 'admin' || roles.some(r => r && r.name === 'Admin')
+        const isAuditor = roles.some(r => r && r.name === 'Auditor')
+
+        let query = { workflowId }
+
+        if (!isAdmin && !isAuditor) {
+            // Regular user: can see only their requests OR requests assigned to them
+            query.$or = [
+                { initiatorUserId: user._id },
+                { currentAssignees: user._id }
+            ]
+        }
+
+        const requests = await RequestInstance.find(query)
+            .populate('workflowId', 'name steps') // Need steps for stage names if needed, but mostly standard
+            .populate('initiatorUserId', 'name email')
+            .sort('-createdAt')
+
+        res.json({ success: true, data: requests })
+
+    } catch (error) {
+        console.error("Error fetching kanban requests:", error)
         res.status(500).json({ msg: 'Server Error', error: error.message })
     }
 }

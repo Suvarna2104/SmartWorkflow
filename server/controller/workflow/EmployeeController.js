@@ -20,6 +20,18 @@ export const getActiveWorkflows = async (req, res) => {
     }
 }
 
+export const getWorkflowById = async (req, res) => {
+    try {
+        const { id } = req.params
+        const workflow = await WorkflowDefinition.findOne({ _id: id, isActive: true })
+        if (!workflow) return res.status(404).json({ success: false, msg: 'Workflow not found or inactive' })
+        res.status(200).json(workflow) // Return direct object to match legacy or wrapped? Frontend expects 'res.data' usually, but let's check Kanban usage. 
+        // Kanban: const workflow = wfRes.data
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message })
+    }
+}
+
 export const createRequest = async (req, res) => {
     try {
         const { workflowId, formData } = req.body
@@ -73,6 +85,46 @@ export const getRequestDetails = async (req, res) => {
         res.status(200).json({ success: true, data: { ...request.toObject(), history } })
 
     } catch (err) {
+        res.status(500).json({ success: false, error: err.message })
+    }
+}
+
+export const getKanbanRequests = async (req, res) => {
+    try {
+        const { workflowId } = req.query
+        if (!workflowId) {
+            return res.status(400).json({ msg: 'Workflow ID is required' })
+        }
+
+        const user = req.user
+        if (!user) {
+            return res.status(401).json({ msg: 'User context missing' })
+        }
+
+        // Safe role check
+        const roles = user.roles || []
+        const isAdmin = user.role === 'admin' || roles.some(r => r && r.name === 'Admin')
+        const isAuditor = roles.some(r => r && r.name === 'Auditor')
+
+        let query = { workflowId }
+
+        if (!isAdmin && !isAuditor) {
+            // Regular user: can see only their requests OR requests assigned to them
+            query.$or = [
+                { initiatorUserId: user._id },
+                { currentAssignees: user._id }
+            ]
+        }
+
+        const requests = await RequestInstance.find(query)
+            .populate('workflowId', 'name steps')
+            .populate('initiatorUserId', 'name email')
+            .sort('-createdAt')
+
+        res.status(200).json({ success: true, data: requests })
+
+    } catch (err) {
+        console.error("Error fetching kanban requests:", err)
         res.status(500).json({ success: false, error: err.message })
     }
 }

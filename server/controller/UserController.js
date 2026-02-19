@@ -100,7 +100,18 @@ export const updateUser = async (req, res) => {
         }
 
         user.name = name || user.name
-        user.role = role || user.role
+
+        // Fix: Sync 'roles' array if 'role' string is updated but 'roles' array is NOT provided
+        if (role) {
+            user.role = role
+            if (!roleIds) {
+                const roleDoc = await Role.findOne({ name: role })
+                if (roleDoc) {
+                    user.roles = [roleDoc._id]
+                }
+            }
+        }
+
         if (roleIds) user.roles = roleIds
         user.team = team || user.team
 

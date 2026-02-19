@@ -20,5 +20,6 @@ router.post('/workflows', AdminController.createWorkflow)
 router.put('/workflows/:id/new-version', AdminController.createNewVersion)
 router.patch('/workflows/:id/toggle', AdminController.toggleWorkflowStatus)
 router.delete('/workflows/:id', AdminController.deleteWorkflow)
+router.post('/requests/:id/assign', AdminController.assignRequest)
 
 export default router
